@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.5.2](https://github.com/leg100/pug/compare/v0.5.1...v0.5.2) (2024-09-07)
+
+
+### Features
+
+* suspend using ctrl+z ([22ccdee](https://github.com/leg100/pug/commit/22ccdeef140ab4d566bad2f7689916d4fa92a211))
+
+
+### Miscellaneous
+
+* change serial number bg to black for clarity ([b256ba4](https://github.com/leg100/pug/commit/b256ba43d14f92e9d9c4262c024d1245c5d27af6))
+* remove unused logger param ([a80bf0b](https://github.com/leg100/pug/commit/a80bf0b3789c95bbac95a4e5c2a84dc5683cb2ce))
+
 ## [0.5.1](https://github.com/leg100/pug/compare/v0.5.0...v0.5.1) (2024-08-22)
 
 
