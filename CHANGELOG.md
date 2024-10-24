@@ -1,5 +1,60 @@
 # Changelog
 
+## [0.5.5](https://github.com/leg100/pug/compare/v0.5.4...v0.5.5) (2024-10-07)
+
+
+### Bug Fixes
+
+* support both terragrunt &lt; 0.67 and &gt;= 0.67 ([16b0b05](https://github.com/leg100/pug/commit/16b0b05828de90fe49d7f7dcf291e7a85a303703))
+
+## [0.5.4](https://github.com/leg100/pug/compare/v0.5.3...v0.5.4) (2024-10-06)
+
+
+### Bug Fixes
+
+* support terragrunt &gt;= v0.67 ([d4caaff](https://github.com/leg100/pug/commit/d4caaff6e7ba3f2b12debb33472eb8498f22e809))
+
+
+### Miscellaneous
+
+* setup funding ([79f2b80](https://github.com/leg100/pug/commit/79f2b800b122da86357a182979fd5eec2d14dd79))
+
+## [0.5.3](https://github.com/leg100/pug/compare/v0.5.2...v0.5.3) (2024-09-22)
+
+
+### Features
+
+* scrollbars ([#130](https://github.com/leg100/pug/issues/130)) ([bed7586](https://github.com/leg100/pug/commit/bed75868f3dd5aa2014c8e853e4547d3c4fafb02))
+
+
+### Bug Fixes
+
+* stop ANSI colors bleeding ([1b58356](https://github.com/leg100/pug/commit/1b58356375afa4defe6ee2c574a65049c39699be))
+
+## [0.5.2](https://github.com/leg100/pug/compare/v0.5.1...v0.5.2) (2024-09-19)
+
+
+### Features
+
+* execute arbitrary processes ([#125](https://github.com/leg100/pug/issues/125)) ([d72ba7c](https://github.com/leg100/pug/commit/d72ba7c3b27ad2717d8d616a3d9c61f728daf149))
+* map `u` to `terraform init -upgrade` ([1d41267](https://github.com/leg100/pug/commit/1d4126751e491c301ed6d0f22f90d7e75287e6d0))
+* suspend using ctrl+z ([22ccdee](https://github.com/leg100/pug/commit/22ccdeef140ab4d566bad2f7689916d4fa92a211))
+
+
+### Bug Fixes
+
+* incomplete ansi escape codes break kitty terminal ([#128](https://github.com/leg100/pug/issues/128)) ([90e6d02](https://github.com/leg100/pug/commit/90e6d02ae8b8b3c66ca9a4b647aed2cb4480cefd))
+* task streaming ([#129](https://github.com/leg100/pug/issues/129)) ([33db65c](https://github.com/leg100/pug/commit/33db65c5dc970248ae9530bae69251167e620ca5))
+
+
+### Miscellaneous
+
+* change serial number bg to black for clarity ([b256ba4](https://github.com/leg100/pug/commit/b256ba43d14f92e9d9c4262c024d1245c5d27af6))
+* document using multiple versions of terraform ([#127](https://github.com/leg100/pug/issues/127)) ([dd71c9f](https://github.com/leg100/pug/commit/dd71c9fa0c917591e5afd0fbfe5bb514609187c7))
+* go mod tidy ([e39a7cd](https://github.com/leg100/pug/commit/e39a7cd49f5c590ac5808329d4abaab43a0c6131))
+* regroup direct requirements in go.mod ([317ad4e](https://github.com/leg100/pug/commit/317ad4e9064e377adf9deeb10fc3568014d0bb10))
+* remove unused logger param ([a80bf0b](https://github.com/leg100/pug/commit/a80bf0b3789c95bbac95a4e5c2a84dc5683cb2ce))
+
 ## [0.5.1](https://github.com/leg100/pug/compare/v0.5.0...v0.5.1) (2024-08-22)
 
 

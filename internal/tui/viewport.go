@@ -10,6 +10,7 @@ import (
 	"github.com/charmbracelet/lipgloss"
 	"github.com/hokaccha/go-prettyjson"
 	"github.com/leg100/pug/internal/tui/keys"
+	"github.com/leg100/reflow/wordwrap"
 	"github.com/leg100/reflow/wrap"
 )
 
@@ -19,7 +20,7 @@ type Viewport struct {
 
 	Autoscroll bool
 
-	content string
+	content []byte
 	json    bool
 	spinner *spinner.Model
 }
@@ -71,26 +72,11 @@ func (m Viewport) Update(msg tea.Msg) (Viewport, tea.Cmd) {
 	return m, tea.Batch(cmds...)
 }
 
-// percentWidth is the width of the scroll percentage section to the
-// right of the viewport
-const percentWidth = 6 // 6 = 4 for xxx% + 2 for padding
-
 func (m Viewport) View() string {
-	// scroll percent container occupies a fixed width section to the right of
-	// the viewport.
-	percent := Regular.
-		Background(ScrollPercentageBackground).
-		Padding(0, 1).
-		Render(fmt.Sprintf("%3.f%%", m.viewport.ScrollPercent()*100))
-	percentContainer := Regular.
-		Height(m.viewport.Height).
-		Width(percentWidth).
-		AlignVertical(lipgloss.Bottom).
-		Render(percent)
-
 	var output string
-	if m.content == "" {
+	if len(m.content) == 0 {
 		msg := "Awaiting output"
+		// TODO: make spinner non-optional
 		if m.spinner != nil {
 			msg += " " + m.spinner.View()
 		}
@@ -101,16 +87,18 @@ func (m Viewport) View() string {
 	} else {
 		output = m.viewport.View()
 	}
-
-	return lipgloss.JoinHorizontal(lipgloss.Top,
-		output,
-		percentContainer,
+	scrollbar := Scrollbar(
+		m.viewport.Height,
+		m.viewport.TotalLineCount(),
+		m.viewport.VisibleLineCount(),
+		m.viewport.YOffset,
 	)
+	return lipgloss.JoinHorizontal(lipgloss.Top, output, scrollbar)
 }
 
 func (m *Viewport) SetDimensions(width, height int) {
-	width = max(0, width-percentWidth)
-	// If width has changed, re-rewrap existing content.
+	width = max(0, width-ScrollbarWidth)
+	// If width has changed, re-wrap existing content.
 	rewrap := m.viewport.Width != width
 	m.viewport.Width = width
 	m.viewport.Height = height
@@ -119,24 +107,21 @@ func (m *Viewport) SetDimensions(width, height int) {
 	}
 }
 
-func (m *Viewport) AppendContent(content string, finished bool) (err error) {
-	m.content += content
+func (m *Viewport) AppendContent(content []byte, finished bool) (err error) {
+	m.content = append(m.content, content...)
 	if finished {
-		if m.content == "" {
-			m.content = "No output"
+		if len(m.content) == 0 {
+			m.content = []byte("No output")
 		} else if m.json {
 			// Prettify JSON output from task. This can only be done once
 			// the task has finished and has produced complete and
 			// syntactically valid json object(s).
-			//
-			// TODO: avoid casting to string and back, thereby avoiding
-			// unnecessary allocations.
-			if b, fmterr := prettyjson.Format([]byte(m.content)); fmterr != nil {
+			if b, fmterr := prettyjson.Format(m.content); fmterr != nil {
 				// In the event of an error, still set unprettified content
 				// below.
 				err = fmt.Errorf("pretty printing json content: %w", fmterr)
 			} else {
-				m.content = string(b)
+				m.content = b
 			}
 		}
 	}
@@ -148,6 +133,10 @@ func (m *Viewport) AppendContent(content string, finished bool) (err error) {
 }
 
 func (m *Viewport) setContent() {
-	wrapped := wrap.String(m.content, m.viewport.Width)
-	m.viewport.SetContent(wrapped)
+	// Wrap content to the width of the viewport, whilst respecting ANSI escape
+	// codes (i.e. don't split codes across lines). The wrapper also ensures
+	// thekkkk
+	wrapped := wrap.Bytes(wordwrap.Bytes(m.content, m.viewport.Width), m.viewport.Width)
+	sanitized := SanitizeColors(wrapped)
+	m.viewport.SetContent(string(sanitized))
 }

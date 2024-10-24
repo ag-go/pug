@@ -3,7 +3,6 @@ package task
 import (
 	"errors"
 	"fmt"
-	"io"
 	"path/filepath"
 	"strings"
 
@@ -48,7 +47,7 @@ func (mm *Maker) make(id resource.ID, width, height int, border bool) (tea.Model
 		tasks:   mm.Tasks,
 		plans:   mm.Plans,
 		task:    task,
-		output:  task.NewReader(true),
+		output:  task.NewStreamer(),
 		spinner: mm.Spinner,
 		// read upto 1kb at a time
 		buf:      make([]byte, 1024),
@@ -103,7 +102,7 @@ type model struct {
 	task  *task.Task
 	plans *plan.Service
 
-	output io.Reader
+	output <-chan []byte
 	buf    []byte
 
 	showInfo bool
@@ -237,8 +236,8 @@ func (m model) View() string {
 			tui.Bold.Render("Task ID"),
 			m.task.ID.String(),
 			"",
-			tui.Bold.Render("Command"),
-			fmt.Sprintf("%s %s", m.program, strings.Join(m.task.Command, " ")),
+			tui.Bold.Render("Program"),
+			m.task.Program,
 			"",
 			tui.Bold.Render("Arguments"),
 			args,
@@ -312,7 +311,7 @@ func (m model) HelpBindings() []key.Binding {
 	if workspaceID := m.task.WorkspaceID; workspaceID != nil {
 		bindings = append(bindings, keys.Common.Workspace)
 	}
-	if plan.IsApplyTask(m.task) {
+	if m.task.Identifier == plan.ApplyTask {
 		bindings = append(bindings, keys.Common.Apply)
 	}
 	return bindings
@@ -321,18 +320,17 @@ func (m model) HelpBindings() []key.Binding {
 func (m model) getOutput() tea.Msg {
 	msg := outputMsg{modelID: m.id}
 
-	n, err := m.output.Read(m.buf)
-	if err == io.EOF {
+	b, ok := <-m.output
+	if ok {
+		msg.output = b
+	} else {
 		msg.eof = true
-	} else if err != nil {
-		return tui.ReportError(errors.New("reading task output"))()
 	}
-	msg.output = string(m.buf[:n])
 	return msg
 }
 
 type outputMsg struct {
 	modelID uuid.UUID
-	output  string
+	output  []byte
 	eof     bool
 }

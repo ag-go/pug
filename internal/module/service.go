@@ -50,7 +50,11 @@ func NewService(opts ServiceOptions) *Service {
 	broker := pubsub.NewBroker[*Module](opts.Logger)
 	table := resource.NewTable(broker)
 
-	opts.Logger.AddEnricher(&logEnricher{table: table})
+	opts.Logger.AddArgsUpdater(&logging.ReferenceUpdater[*Module]{
+		Getter: table,
+		Name:   "module",
+		Field:  "ModuleID",
+	})
 
 	return &Service{
 		table:       table,
@@ -123,8 +127,10 @@ func (s *Service) Reload() (added []string, removed []string, err error) {
 
 func (s *Service) loadTerragruntDependencies() error {
 	task, err := s.tasks.Create(task.Spec{
-		Command: []string{"graph-dependencies"},
-		Wait:    true,
+		Execution: task.Execution{
+			TerraformCommand: []string{"graph-dependencies"},
+		},
+		Wait: true,
 	})
 	if err != nil {
 		return err
@@ -196,32 +202,62 @@ func (s *Service) loadTerragruntDependenciesFromDigraph(r io.Reader) error {
 	return nil
 }
 
+const InitTask task.Identifier = "init"
+
 // Init invokes terraform init on the module.
-func (s *Service) Init(moduleID resource.ID) (task.Spec, error) {
-	return s.updateSpec(moduleID, task.Spec{
-		Command:  []string{"init"},
-		Args:     []string{"-input=false"},
+func (s *Service) Init(moduleID resource.ID, upgrade bool) (task.Spec, error) {
+	mod, err := s.table.Get(moduleID)
+	if err != nil {
+		return task.Spec{}, err
+	}
+	args := []string{"-input=false"}
+	if upgrade {
+		args = append(args, "-upgrade")
+	}
+	spec := task.Spec{
+		ModuleID:   &mod.ID,
+		Path:       mod.Path,
+		Identifier: InitTask,
+		Execution: task.Execution{
+			TerraformCommand: []string{"init"},
+			Args:             args,
+		},
 		Blocking: true,
 		// The terraform plugin cache is not concurrency-safe, so only allow one
 		// init task to run at any given time.
 		Exclusive: s.pluginCache,
-	})
-}
-
-func IsInitTask(t *task.Task) bool {
-	return len(t.Command) > 0 && t.Command[0] == "init"
+	}
+	return spec, nil
 }
 
 func (s *Service) Format(moduleID resource.ID) (task.Spec, error) {
-	return s.updateSpec(moduleID, task.Spec{
-		Command: []string{"fmt"},
-	})
+	mod, err := s.table.Get(moduleID)
+	if err != nil {
+		return task.Spec{}, err
+	}
+	spec := task.Spec{
+		ModuleID: &mod.ID,
+		Path:     mod.Path,
+		Execution: task.Execution{
+			TerraformCommand: []string{"fmt"},
+		},
+	}
+	return spec, nil
 }
 
 func (s *Service) Validate(moduleID resource.ID) (task.Spec, error) {
-	return s.updateSpec(moduleID, task.Spec{
-		Command: []string{"validate"},
-	})
+	mod, err := s.table.Get(moduleID)
+	if err != nil {
+		return task.Spec{}, err
+	}
+	spec := task.Spec{
+		ModuleID: &mod.ID,
+		Path:     mod.Path,
+		Execution: task.Execution{
+			TerraformCommand: []string{"validate"},
+		},
+	}
+	return spec, nil
 }
 
 func (s *Service) List() []*Module {
@@ -250,13 +286,23 @@ func (s *Service) SetCurrent(moduleID, workspaceID resource.ID) error {
 	return err
 }
 
-// updateSpec updates the task spec with common module settings.
-func (s *Service) updateSpec(moduleID resource.ID, spec task.Spec) (task.Spec, error) {
+// Execute a program in a module's directory.
+func (s *Service) Execute(moduleID resource.ID, program string, args ...string) (task.Spec, error) {
 	mod, err := s.table.Get(moduleID)
 	if err != nil {
 		return task.Spec{}, err
 	}
-	spec.ModuleID = &mod.ID
-	spec.Path = mod.Path
+	spec := task.Spec{
+		ModuleID: &mod.ID,
+		Path:     mod.Path,
+		Execution: task.Execution{
+			Program: program,
+			Args:    args,
+		},
+		// We're executing an arbitrary program which could be performing
+		// mutually exclusive actions that prevent other tasks from running as
+		// expected, so we make it a blocking task to be on the safe side.
+		Blocking: true,
+	}
 	return spec, nil
 }

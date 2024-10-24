@@ -121,6 +121,7 @@ func (m list) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		cmds           []tea.Cmd
 		createPlanOpts plan.CreateOptions
 		applyPrompt    = "Auto-apply %d modules?"
+		upgrade        bool
 	)
 
 	switch msg := msg.(type) {
@@ -144,8 +145,14 @@ func (m list) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				path := m.workdir.Join(row.Value.Path)
 				return m, tui.OpenEditor(path)
 			}
+		case key.Matches(msg, keys.Common.InitUpgrade):
+			upgrade = true
+			fallthrough
 		case key.Matches(msg, keys.Common.Init):
-			cmd := m.CreateTasks(m.Modules.Init, m.table.SelectedOrCurrentIDs()...)
+			fn := func(moduleID resource.ID) (task.Spec, error) {
+				return m.Modules.Init(moduleID, upgrade)
+			}
+			cmd := m.CreateTasks(fn, m.table.SelectedOrCurrentIDs()...)
 			return m, cmd
 		case key.Matches(msg, keys.Common.Validate):
 			cmd := m.CreateTasks(m.Modules.Validate, m.table.SelectedOrCurrentIDs()...)
@@ -208,6 +215,28 @@ func (m list) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				fmt.Sprintf(applyPrompt, len(specs)),
 				m.CreateTasksWithSpecs(specs...),
 			)
+		case key.Matches(msg, localKeys.Execute):
+			ids := m.table.SelectedOrCurrentIDs()
+
+			return m, tui.CmdHandler(tui.PromptMsg{
+				Prompt:      fmt.Sprintf("Execute program in %d module directories: ", len(ids)),
+				Placeholder: "terraform version",
+				Action: func(v string) tea.Cmd {
+					if v == "" {
+						return nil
+					}
+					// split value into program and any args
+					parts := strings.Split(v, " ")
+					prog := parts[0]
+					args := parts[1:]
+					fn := func(moduleID resource.ID) (task.Spec, error) {
+						return m.Modules.Execute(moduleID, prog, args...)
+					}
+					return m.CreateTasks(fn, ids...)
+				},
+				Key:    key.NewBinding(key.WithKeys("enter"), key.WithHelp("enter", "confirm")),
+				Cancel: key.NewBinding(key.WithKeys("esc"), key.WithHelp("esc", "cancel")),
+			})
 		}
 	}
 
@@ -227,6 +256,7 @@ func (m list) View() string {
 func (m list) HelpBindings() (bindings []key.Binding) {
 	return []key.Binding{
 		keys.Common.Init,
+		keys.Common.InitUpgrade,
 		keys.Common.Format,
 		keys.Common.Validate,
 		keys.Common.Plan,
@@ -234,6 +264,7 @@ func (m list) HelpBindings() (bindings []key.Binding) {
 		keys.Common.Apply,
 		keys.Common.Destroy,
 		keys.Common.Edit,
+		localKeys.Execute,
 		localKeys.ReloadModules,
 		localKeys.ReloadWorkspaces,
 		keys.Common.State,
